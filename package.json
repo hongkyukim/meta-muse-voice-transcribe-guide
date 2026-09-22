@@ -1,0 +1,14 @@
+{
+  "name": "meta-muse-voice-transcribe-guide",
+  "version": "0.1.0",
+  "private": true,
+  "description": "A contract-first integration kit and developer guide for Meta Muse Voice Transcribe.",
+  "type": "module",
+  "scripts": {
+    "test": "node --test",
+    "demo": "node src/demo.js"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}
