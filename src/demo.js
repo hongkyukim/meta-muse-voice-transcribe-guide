@@ -1,12 +1,16 @@
-import { buildMuseSessionIntent, reduceTranscript, transcriptText } from "./session-intent.js";
+import { createCollaborativeMuseWorkflow } from "./collaborative-agents.js";
+import { createReplayMetaMuseAdapter, DynamicIntegrationRegistry } from "./integrations.js";
 
-const intent = buildMuseSessionIntent({
-  language: "English",
-  hotwords: ["Meta", "Muse", "WebSocket", "Muse"],
+const registry = new DynamicIntegrationRegistry().register(createReplayMetaMuseAdapter([
+  { type: "partial", text: "We should build a realtime voice interface" },
+  { type: "final", text: "We should build a realtime voice interface." },
+  { type: "partial", text: "The team will verify the API contract" },
+  { type: "final", text: "The team will verify the API contract." },
+]));
+
+const results = await createCollaborativeMuseWorkflow({ registry }).execute({
+  session: { language: "English", hotwords: ["Meta", "Muse", "WebSocket"] },
+  audio: [],
 });
 
-let transcript = reduceTranscript(undefined, { type: "partial", text: "Build a realtime" });
-transcript = reduceTranscript(transcript, { type: "partial", text: "Build a realtime voice interface" });
-transcript = reduceTranscript(transcript, { type: "final", text: transcript.partial });
-
-console.log(JSON.stringify({ intent, transcript: transcriptText(transcript) }, null, 2));
+console.log(JSON.stringify(results["review-agent"], null, 2));

@@ -12,6 +12,8 @@ This project is intentionally not an unofficial API SDK. The public research mat
 
 - A small, dependency-free Node.js module that models a privacy-constrained realtime session.
 - A correct transcript reducer: partial hypotheses replace the in-progress text; finalized segments are retained.
+- A dependency-graph workflow with four collaborating roles: session designer, transcriber, insight agent, action agent, and a final reviewer.
+- Dynamic integration selection: application code chooses a provider by declared capability, while the Meta transport stays behind an injected adapter.
 - A demo and tests that run without a Meta account, credential, microphone, or network call.
 - Production integration guidance and an API-contract checklist.
 
@@ -24,7 +26,39 @@ npm test
 npm run demo
 ```
 
-The demo prints a session intent and a final transcript assembled from realistic partial/final events.
+The demo runs a complete collaborative workflow using a deterministic replay adapter. It prints the reviewed transcript, key points, and action candidates without calling Meta's service.
+
+## Collaborative agent graph
+
+`src/collaborative-agents.js` models a practical application workflow:
+
+```text
+session-designer → transcriber ─┬→ insight-agent ─┐
+                                ├→ action-agent  ─┼→ review-agent
+                                └─────────────────┘
+```
+
+The graph executor runs independent nodes concurrently after their dependencies complete. The current roles are deterministic application agents: they create a safe ASR intent, transcribe through a dynamically selected provider, identify sentence-level key points and action language, and combine the results in a review step. Replace only the role functions if you want an LLM to perform enrichment.
+
+### Dynamic Meta Muse integration
+
+`DynamicIntegrationRegistry` resolves a provider by capability (`realtime-transcription`), not by a hard-coded vendor branch. `createMetaMuseAdapter({ stream })` accepts an injected, provider-specific async event stream. Implement that one callback from the current official Meta contract; the graph, UI state, and collaboration logic do not change.
+
+```js
+const adapter = createMetaMuseAdapter({
+  async *stream({ intent, audio }) {
+    // Authenticate and translate `intent` using the current official API spec.
+    // Send `audio` at realtime pace; yield only { type: "partial" | "final", text }.
+  },
+});
+const registry = new DynamicIntegrationRegistry().register(adapter);
+const result = await createCollaborativeMuseWorkflow({ registry }).execute({
+  session: { language: "English", hotwords: ["Meta Muse"] },
+  audio: microphoneChunks,
+});
+```
+
+The repository's demo uses `createReplayMetaMuseAdapter()` instead. It is a credential-free test double, not a live API client.
 
 ## How to use Muse in an app
 
@@ -56,8 +90,11 @@ The demo prints a session intent and a final transcript assembled from realistic
 ## Repository layout
 
 ```text
-src/session-intent.js  session policy and transcript reducer
-src/demo.js            no-credential runnable example
+src/session-intent.js          session policy and transcript reducer
+src/workflow-graph.js          dependency-graph executor
+src/integrations.js            dynamic provider registry and Meta adapter seam
+src/collaborative-agents.js    collaborating role graph
+src/demo.js                    no-credential runnable example
 test/                  Node built-in test suite
 docs/                  production API verification checklist
 ```
